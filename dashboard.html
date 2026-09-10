@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - FixTask</title>
+  <link rel="icon" type="image/svg+xml" href="assets/icons/logo.svg">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="app-sidebar" id="app-sidebar"></aside>
+    <header class="app-topbar" id="app-topbar"></header>
+    <main class="app-main">
+      <div class="section-header">
+        <h4 class="mb-0">Dashboard</h4>
+      </div>
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-lg">
+          <div class="stat-card">
+            <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-list-task"></i></div>
+            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-label">Total Tasks</div>
+          </div>
+        </div>
+        <div class="col-6 col-lg">
+          <div class="stat-card">
+            <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-clock-history"></i></div>
+            <div class="stat-value" id="statPending">0</div>
+            <div class="stat-label">Pending</div>
+          </div>
+        </div>
+        <div class="col-6 col-lg">
+          <div class="stat-card">
+            <div class="stat-icon bg-info bg-opacity-10 text-info"><i class="bi bi-tools"></i></div>
+            <div class="stat-value" id="statProgress">0</div>
+            <div class="stat-label">In Progress</div>
+          </div>
+        </div>
+        <div class="col-6 col-lg">
+          <div class="stat-card">
+            <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-check-circle"></i></div>
+            <div class="stat-value" id="statCompleted">0</div>
+            <div class="stat-label">Completed</div>
+          </div>
+        </div>
+        <div class="col-6 col-lg">
+          <div class="stat-card">
+            <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-currency-dollar"></i></div>
+            <div class="stat-value" id="statRevenue">Rs. 0</div>
+            <div class="stat-label">Today's Revenue</div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="border-radius:var(--radius);border:1px solid #e2e8f0;">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <h5 class="mb-0">Recent Tasks</h5>
+            <div class="d-flex gap-2">
+              <input type="text" class="form-control form-control-sm" placeholder="Search tasks..." id="dashSearch" style="width:200px;">
+              <select class="form-select form-select-sm" id="dashStatusFilter" style="width:auto;">
+                <option value="All">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
+              </select>
+              <a href="tasks.html?action=new" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>New Task</a>
+            </div>
+          </div>
+          <div id="recentTasks"></div>
+        </div>
+      </div>
+      <div class="app-footer">Developed By Mohamed Aflan | Contact - 0760562969</div>
+    </main>
+  </div>
+  <div class="mobile-bottom-nav" id="mobile-nav"></div>
+  <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3" style="z-index:9999;"></div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    function renderDashboard() {
+      var tasks = Storage.getTasks();
+      var today = new Date().toISOString().split('T')[0];
+      var search = (document.getElementById('dashSearch') || {}).value || '';
+      search = search.toLowerCase();
+      var statusFilter = (document.getElementById('dashStatusFilter') || {}).value || 'All';
+
+      document.getElementById('statTotal').textContent = tasks.length;
+      document.getElementById('statPending').textContent = tasks.filter(function(t){ return t.status === 'Pending'; }).length;
+      document.getElementById('statProgress').textContent = tasks.filter(function(t){ return t.status === 'In Progress'; }).length;
+      document.getElementById('statCompleted').textContent = tasks.filter(function(t){ return t.status === 'Completed'; }).length;
+
+      var todayRevenue = tasks.filter(function(t){ return t.createdAt && t.createdAt.startsWith(today); })
+        .reduce(function(sum, t){ return sum + (parseFloat(t.advance) || 0); }, 0);
+      document.getElementById('statRevenue').textContent = App.formatCurrency(todayRevenue);
+
+      var recent = tasks;
+      if (statusFilter !== 'All') recent = recent.filter(function(t){ return t.status === statusFilter; });
+      if (search) recent = recent.filter(function(t){
+        return (t.customerName || '').toLowerCase().indexOf(search) !== -1 ||
+               (t.id || '').toLowerCase().indexOf(search) !== -1;
+      });
+      recent = recent.slice(0, 10);
+
+      var container = document.getElementById('recentTasks');
+      if (!recent.length) {
+        container.innerHTML = '<div class="empty-state"><i class="bi bi-inbox"></i><h5>No tasks yet</h5><p>Create your first repair task to start managing your shop.</p><a href="tasks.html?action=new" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Create Task</a></div>';
+        return;
+      }
+
+      var rows = '';
+      for (var i = 0; i < recent.length; i++) {
+        var t = recent[i];
+        rows += '<tr style="cursor:pointer" onclick="window.location.href=\'task-details.html?id=' + t.id + '\'">' +
+          '<td class="fw-bold text-primary">' + t.id + '</td>' +
+          '<td>' + (t.customerName || '-') + '<br><small class="text-muted">' + (t.customerPhone || '') + '</small></td>' +
+          '<td>' + (t.brand || '') + ' ' + (t.model || '') + '</td>' +
+          '<td>' + (t.service || '') + '</td>' +
+          '<td class="fw-bold">' + App.formatCurrency(t.price) + '</td>' +
+          '<td>' + App.statusBadge(t.status) + '</td>' +
+          '<td><small>' + App.formatDate(t.createdAt) + '</small></td>' +
+          '</tr>';
+      }
+      container.innerHTML = '<div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Task ID</th><th>Customer</th><th>Device</th><th>Service</th><th>Price</th><th>Status</th><th>Date</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    }
+
+    document.addEventListener('DOMContentLoaded', function(){
+      renderDashboard();
+      document.getElementById('dashSearch').addEventListener('input', renderDashboard);
+      document.getElementById('dashStatusFilter').addEventListener('change', renderDashboard);
+      window.addEventListener('resize', renderDashboard);
+    });
+
+    // Disable right click
+document.addEventListener("contextmenu", function(e){
+    e.preventDefault();
+});
+
+// Disable developer shortcuts
+document.addEventListener("keydown", function(e){
+
+    // F12
+    if(e.key === "F12"){
+        e.preventDefault();
+    }
+
+    // Ctrl + Shift + I (Inspect)
+    if(e.ctrlKey && e.shiftKey && e.key === "I"){
+        e.preventDefault();
+    }
+
+    // Ctrl + Shift + J (Console)
+    if(e.ctrlKey && e.shiftKey && e.key === "J"){
+        e.preventDefault();
+    }
+
+    // Ctrl + U (View Source)
+    if(e.ctrlKey && e.key === "u"){
+        e.preventDefault();
+    }
+
+});
+  </script>
+</body>
+</html>

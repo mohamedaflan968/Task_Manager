@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings - FixTask</title>
+  <link rel="icon" type="image/svg+xml" href="assets/icons/logo.svg">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="app-sidebar" id="app-sidebar"></aside>
+    <header class="app-topbar" id="app-topbar"></header>
+    <main class="app-main">
+      <div class="section-header"><h4 class="mb-0">Settings</h4></div>
+
+      <div class="card mb-4" style="border-radius:var(--radius);border:1px solid #e2e8f0;">
+        <div class="card-body">
+          <h5 class="mb-3">Shop Information</h5>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Shop Name</label>
+              <input type="text" class="form-control" id="shopName">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Shop Phone</label>
+              <input type="text" class="form-control" id="shopPhone">
+            </div>
+          </div>
+          <button class="btn btn-primary mt-3" onclick="saveShopSettings()"><i class="bi bi-check-lg me-1"></i>Save</button>
+        </div>
+      </div>
+
+      <div class="card mb-4" style="border-radius:var(--radius);border:1px solid #e2e8f0;">
+        <div class="card-body">
+          <h5 class="mb-3">Data Management</h5>
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            <button class="btn btn-outline-primary" onclick="exportBackup()"><i class="bi bi-download me-1"></i>Export Backup</button>
+            <label class="btn btn-outline-primary mb-0"><i class="bi bi-upload me-1"></i>Import Backup<input type="file" accept=".json" class="d-none" onchange="importBackup(this)"></label>
+            <button class="btn btn-outline-danger" onclick="clearAllData()"><i class="bi bi-trash me-1"></i>Clear All Data</button>
+          </div>
+          <button class="btn btn-outline-secondary" onclick="loadDemoData()"><i class="bi bi-play-circle me-1"></i>Load Demo Data</button>
+        </div>
+      </div>
+
+      <div class="card mb-4" style="border-radius:var(--radius);border:1px solid #e2e8f0;">
+        <div class="card-body">
+          <h5 class="mb-3">About FixTask</h5>
+          <p class="text-muted mb-1">Version 1.0.0 - Mobile Shop Task Manager</p>
+          <p class="text-muted mb-0">Developed By Mohamed Aflan | Contact - 0760562969</p>
+        </div>
+      </div>
+
+      <div class="app-footer">Developed By Mohamed Aflan | Contact - 0760562969</div>
+    </main>
+  </div>
+
+  <div class="mobile-bottom-nav" id="mobile-nav"></div>
+  <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3" style="z-index:9999;"></div>
+
+  <div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="border-radius:var(--radius);">
+        <div class="modal-header"><h5 class="modal-title">Confirm</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body" id="confirmModalBody"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-danger" id="confirmModalYes">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    function initSettings() {
+      var s = Storage.getSettings();
+      document.getElementById('shopName').value = s.shopName || '';
+      document.getElementById('shopPhone').value = s.shopPhone || '';
+    }
+
+    function saveShopSettings() {
+      var s = Storage.getSettings();
+      s.shopName = document.getElementById('shopName').value.trim() || 'FixTask Shop';
+      s.shopPhone = document.getElementById('shopPhone').value.trim();
+      Storage.saveSettings(s);
+      App.showToast('Settings saved');
+    }
+
+    function exportBackup() {
+      var data = Storage.exportAll();
+      var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      var d = new Date().toISOString().split('T')[0];
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'fixtask-backup-' + d + '.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      App.showToast('Backup exported');
+    }
+
+    function importBackup(input) {
+      var file = input.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          var data = JSON.parse(e.target.result);
+          if (!data || typeof data !== 'object') throw new Error('Invalid');
+          Storage.importAll(data);
+          App.showToast('Backup imported successfully');
+          initSettings();
+        } catch (err) {
+          App.showToast('Invalid backup file', 'error');
+        }
+      };
+      reader.readAsText(file);
+      input.value = '';
+    }
+
+    function clearAllData() {
+      App.showConfirm('This will permanently delete ALL data. Are you sure?', function(yes) {
+        if (!yes) return;
+        Storage.clearAll();
+        App.showToast('All data cleared');
+        initSettings();
+      });
+    }
+
+    function loadDemoData() {
+      var demoServices = [
+        { id: 'svc-d1', name: 'Screen Replacement', defaultPrice: 18000 },
+        { id: 'svc-d2', name: 'Battery Replacement', defaultPrice: 5000 },
+        { id: 'svc-d3', name: 'Charging Port Repair', defaultPrice: 4000 },
+        { id: 'svc-d4', name: 'Software Repair', defaultPrice: 3000 },
+        { id: 'svc-d5', name: 'Display Repair', defaultPrice: 15000 },
+        { id: 'svc-d6', name: 'Water Damage Repair', defaultPrice: 8000 },
+        { id: 'svc-d7', name: 'Other', defaultPrice: 2000 }
+      ];
+      Storage.saveServices(demoServices);
+
+      var demoTasks = [
+        { id: 'FT-2026-0001', customerName: 'Kasun Perera', customerPhone: '0712345678', brand: 'iPhone', model: '13', imei: '356789012345678', service: 'Screen Replacement', description: 'Cracked screen', price: 18000, advance: 5000, balance: 13000, status: 'In Progress', createdAt: new Date(Date.now() - 86400000).toISOString(), expectedDate: '2026-09-12', notes: 'Customer will collect on Friday' },
+        { id: 'FT-2026-0002', customerName: 'Nimal Fernando', customerPhone: '0778901234', brand: 'Samsung', model: 'A54', imei: '', service: 'Battery Replacement', description: 'Battery draining fast', price: 5000, advance: 5000, balance: 0, status: 'Completed', createdAt: new Date(Date.now() - 172800000).toISOString(), expectedDate: '2026-09-11', notes: '' },
+        { id: 'FT-2026-0003', customerName: 'Sahan Silva', customerPhone: '0761234567', brand: 'Xiaomi', model: 'Redmi Note 12', imei: '867530912345678', service: 'Charging Port Repair', description: 'Loose charging port', price: 4000, advance: 0, balance: 4000, status: 'Pending', createdAt: new Date().toISOString(), expectedDate: '2026-09-13', notes: 'Warranty claim' },
+        { id: 'FT-2026-0004', customerName: 'Amali Rajapaksa', customerPhone: '0723456789', brand: 'Samsung', model: 'S24', imei: '', service: 'Water Damage Repair', description: 'Phone fell in water', price: 8000, advance: 3000, balance: 5000, status: 'Pending', createdAt: new Date().toISOString(), expectedDate: '2026-09-14', notes: 'URGENT' },
+        { id: 'FT-2026-0005', customerName: 'Kasun Perera', customerPhone: '0712345678', brand: 'iPhone', model: '15 Pro', imei: '', service: 'Software Repair', description: 'Boot loop issue', price: 3000, advance: 0, balance: 3000, status: 'In Progress', createdAt: new Date(Date.now() - 43200000).toISOString(), expectedDate: '2026-09-11', notes: '' }
+      ];
+      Storage.saveTasks(demoTasks);
+      Storage.rebuildCustomers();
+      App.showToast('Demo data loaded');
+      initSettings();
+    }
+
+    document.addEventListener('DOMContentLoaded', initSettings);
+
+    // Disable right click
+document.addEventListener("contextmenu", function(e){
+    e.preventDefault();
+});
+
+// Disable developer shortcuts
+document.addEventListener("keydown", function(e){
+
+    // F12
+    if(e.key === "F12"){
+        e.preventDefault();
+    }
+
+    // Ctrl + Shift + I (Inspect)
+    if(e.ctrlKey && e.shiftKey && e.key === "I"){
+        e.preventDefault();
+    }
+
+    // Ctrl + Shift + J (Console)
+    if(e.ctrlKey && e.shiftKey && e.key === "J"){
+        e.preventDefault();
+    }
+
+    // Ctrl + U (View Source)
+    if(e.ctrlKey && e.key === "u"){
+        e.preventDefault();
+    }
+
+});
+  </script>
+</body>
+</html>
