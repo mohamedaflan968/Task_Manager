@@ -14,16 +14,19 @@ const Notifications = {
     const waBtn = document.getElementById('notifWhatsApp');
     const smsBtn = document.getElementById('notifSMS');
     const skipBtn = document.getElementById('notifSkip');
+    const billBtn = document.getElementById('notifBill');
 
     const clean = () => {
       waBtn.replaceWith(waBtn.cloneNode(true));
       smsBtn.replaceWith(smsBtn.cloneNode(true));
       skipBtn.replaceWith(skipBtn.cloneNode(true));
+      billBtn.replaceWith(billBtn.cloneNode(true));
     };
 
     const newWa = document.getElementById('notifWhatsApp');
     const newSms = document.getElementById('notifSMS');
     const newSkip = document.getElementById('notifSkip');
+    const newBill = document.getElementById('notifBill');
 
     newWa.onclick = () => {
       const phone = task.customerPhone?.replace(/[^0-9]/g, '') || '';
@@ -47,6 +50,12 @@ const Notifications = {
       const bsModal = bootstrap.Modal.getInstance(modal);
       if (bsModal) bsModal.hide();
     };
+
+    if (newBill) {
+      newBill.onclick = () => {
+        Thermal.printBill(task);
+      };
+    }
 
     const bsModal = new bootstrap.Modal(modal);
     bsModal.show();
